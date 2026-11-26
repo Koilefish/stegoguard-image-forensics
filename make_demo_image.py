@@ -4,8 +4,11 @@ import zlib
 
 mode = Path("lab_mode.txt").read_text(encoding="utf-8").strip().lower()
 
-if mode not in ["clean", "suspicious"]:
-    raise SystemExit("lab_mode.txt must contain either: clean or suspicious")
+# clean      -> a normal image, the scan should pass
+# suspicious -> harmless demo text appended AFTER the PNG ending marker
+# metadata   -> harmless demo text hidden INSIDE a compressed PNG text chunk (zTXt)
+if mode not in ["clean", "suspicious", "metadata"]:
+    raise SystemExit("lab_mode.txt must contain one of: clean, suspicious, metadata")
 
 Path("images").mkdir(exist_ok=True)
 
@@ -18,8 +21,11 @@ def png_chunk(chunk_type, data):
         + struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
     )
 
-def create_demo_png(width=300, height=300):
-    """Create a valid RGB PNG image using only Python standard library."""
+def create_demo_png(width=300, height=300, extra_chunks=b""):
+    """Create a valid RGB PNG image using only Python standard library.
+
+    extra_chunks are inserted between the pixel data (IDAT) and the end marker (IEND).
+    """
     png_signature = b"\x89PNG\r\n\x1a\n"
 
     # PNG header: width, height, bit depth 8, color type 2 = RGB
@@ -42,15 +48,21 @@ def create_demo_png(width=300, height=300):
         png_signature
         + png_chunk(b"IHDR", ihdr)
         + png_chunk(b"IDAT", compressed_pixels)
+        + extra_chunks
         + png_chunk(b"IEND", b"")
     )
 
-# Larger valid 300x300 PNG image.
-png_data = create_demo_png(width=300, height=300)
+if mode == "metadata":
+    # zTXt layout: keyword, NUL byte, compression method (0), zlib-compressed text.
+    # Because the text is compressed, the keyword never appears in the raw file bytes.
+    hidden_text = b"CONFIDENTIAL: harmless demo text hidden inside a compressed PNG metadata chunk."
+    ztxt_data = b"Comment\x00\x00" + zlib.compress(hidden_text)
+    png_data = create_demo_png(300, 300, extra_chunks=png_chunk(b"zTXt", ztxt_data))
+else:
+    # Larger valid 300x300 PNG image.
+    png_data = create_demo_png(width=300, height=300)
 
 if mode == "suspicious":
-    #png_data += b"\nHIDDEN_MESSAGE: This is harmless demo hidden data for the StegoGuard lab.\n"
-    #png_data += b"\nCONFIDENTIAL: This is harmless demo hidden data for the StegoGuard lab.\n"
     png_data += b"\nCONFIDENTIAL CLASSIFIED: This is harmless demo hidden data for the StegoGuard lab.\n"
 
 Path("images/student_image.png").write_bytes(png_data)
