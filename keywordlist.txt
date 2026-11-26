@@ -1,0 +1,10 @@
+# StegoGuard keyword list
+# One keyword per line. Blank lines and lines starting with # are ignored.
+# Matching is case-insensitive. These are ADDED to the built-in list in scanner.py.
+hidden_message
+secret
+password
+token
+api_key
+confidential
+classified
