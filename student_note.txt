@@ -1,3 +1,137 @@
-Khoi
-Nov 26 2026
-StegoGuard lab, completed in my fork
+STUDENT NOTE - StegoGuard Image Forensics Lab
+==============================================
+
+Name:            Koi
+GitHub account:  Koilefish
+Repository:      https://github.com/Koilefish/stegoguard-image-forensics
+Date completed:  26 November 2026
+
+Safety note: this work is for defensive cybersecurity learning only. All
+"hidden" text used here is harmless demo text.
+
+
+1. WHAT THIS LAB IS ABOUT
+-------------------------
+StegoGuard is a small security tool that checks image files for hidden data.
+GitHub Actions runs it automatically every time I push a change, so a bad
+image turns the run red (failed) and a good image turns it green (passed).
+
+
+2. SOME PNG BASICS (needed to understand the improvements)
+----------------------------------------------------------
+- A PNG file starts with an 8-byte signature, then a list of "chunks".
+- Every chunk has: length (4 bytes), type (4 letters), data, and a CRC
+  checksum (4 bytes). So a chunk takes its data size + 12 bytes.
+- Critical chunks: IHDR (width/height/colour), IDAT (the compressed
+  pixels) and IEND (the official end of the image).
+- Optional chunks, such as tEXt, zTXt and iTXt, hold text like "Author" or
+  "Comment". Viewers ignore what they do not need, so an image with extra
+  chunks still looks exactly the same on screen.
+- zTXt and iTXt can be compressed. Compressed text looks like random
+  bytes, so a plain keyword search cannot see the words inside.
+- Data can hide in three places: (1) after IEND, (2) inside an optional
+  chunk, (3) inside the pixel values themselves. This scanner covers (1)
+  and (2). It does NOT detect (3).
+
+
+3. WHAT I COMPLETED (required lab)
+----------------------------------
+Part 3  Clean scan: workflow passed.
+Part 4-5 Switched lab_mode.txt to "suspicious": the workflow failed as
+        expected. Log showed "Status: SUSPICIOUS", "Extra data found after
+        PNG ending marker" and the keyword "hidden_message".
+Part 6  Switched back to "clean": workflow passed again.
+Part 7  Added the keyword b"confidential" to scanner.py and changed the
+        hidden message in make_demo_image.py. A suspicious run then failed
+        with "Suspicious keyword found inside file: confidential", and a
+        clean run passed again.
+
+
+4. OPTIONAL EXTRA CHALLENGES I DID
+----------------------------------
+Option 1  Added another suspicious keyword: "classified".
+Option 2  Changed the hidden message to
+          "CONFIDENTIAL CLASSIFIED: This is harmless demo hidden data...",
+          so one suspicious run now triggers two keyword detections.
+Option 3  Created this file, student_note.txt.
+Option 5  Improved the README formatting: I added a live status badge at the
+          top of the README that shows whether the latest StegoGuard workflow
+          run is "passing" or "failing", so the repository's health is visible
+          at a glance.
+(I did not do option 4, renaming the workflow.)
+
+
+5. MY THREE IMPROVEMENTS TO STEGOGUARD
+--------------------------------------
+Improvement A - PNG chunk walker (smarter detection)
+  The scanner now opens the PNG chunk by chunk instead of only looking at the
+  end of the file. For every chunk it:
+    - recomputes the CRC checksum and fails the scan if it does not match
+      (the chunk was edited or corrupted),
+    - flags text chunks (tEXt, zTXt, iTXt) and unknown/private chunks for
+      review,
+    - decompresses zTXt/iTXt text (limited to about 1 MB for safety) and
+      searches the text for keywords,
+    - checks that the IEND end marker exists and that nothing but
+      whitespace follows it.
+  Why it matters: a message stored in a compressed text chunk is invisible to
+  the old scanner, because it has no trailing data and the keyword is
+  scrambled by compression.
+
+Improvement B - keywordlist.txt (more versatile)
+  Suspicious words now live in a plain text file, one per line (lines
+  starting with # are comments). The built-in list in scanner.py is still
+  used, and keywordlist.txt adds to it. A new detection rule is now a one-line
+  edit instead of a code change.
+
+Improvement C - run summary report (more informative)
+  The scanner writes a Markdown report to the GitHub Actions run page. It
+  has a table of all chunks (offset, size, CRC) and a table of findings with
+  severity, where the problem was found (byte offset or chunk) and a safe
+  text preview. Failures also appear as red error/warning annotations.
+
+New test mode: lab_mode.txt can now be "metadata" as well as "clean" and
+"suspicious". "metadata" hides harmless demo text inside a compressed zTXt
+chunk. Important: the mode only changes which TEST image is generated. The
+scanner always runs every check, whatever the mode.
+
+
+6. RESULTS
+----------
+clean       -> PASSED  (chunks: IHDR IDAT IEND, no findings)
+suspicious  -> FAILED  (84 extra bytes after IEND; keywords "confidential"
+                        and "classified" found after the PNG ending marker)
+metadata    -> FAILED  (chunks: IHDR IDAT zTXt IEND; keyword "confidential"
+                        found in the decoded text of the zTXt chunk)
+Comparison: in my local test, the ORIGINAL scanner reported the "metadata"
+image as clean and passed it. The improved scanner catches it. This is the
+main proof that the improvements add real value.
+
+Severity levels: HIGH findings fail the scan. WARN findings (for example a
+harmless "Software" text chunk) are shown as "review" and still pass, because
+real programs add such chunks legitimately. Running "python scanner.py
+--strict" makes warnings fail as well.
+
+
+7. LIMITATIONS
+--------------
+- It cannot detect data hidden inside the pixels (for example LSB
+  steganography).
+- Keyword matching is easy to avoid: an attacker can simply use words that
+  are not on the list.
+- JPEG and GIF files only get the basic checks (signature, data after the end
+  marker, keywords). The GIF end-marker check is weak, because a single
+  ";" byte inside appended text can hide it.
+- In this lab the scanner reads a generated image. In real use it would scan
+  every image in the repository, which would need a recursive folder search
+  and a workflow that runs on pushes and pull requests to main.
+
+
+8. WHAT I LEARNED
+-----------------
+- Hidden data can sit in an image without changing how it looks.
+- Looking at a file's structure (chunks, checksums, compression) finds more
+  than searching its raw bytes for words.
+- Automated checks in GitHub Actions give fast, repeatable feedback: a red
+  run means a human should look at the file.
+- No single check is enough. Security works best as several layers.
