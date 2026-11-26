@@ -1,4 +1,4 @@
-![StegoGuard](https://github.com/<Koilefish>/<stegoguard-image-forensics>/actions/workflows/stegoguard.yml/badge.svg)
+![StegoGuard](https://github.com/Koilefish/stegoguard-image-forensics/actions/workflows/stegoguard.yml/badge.svg)
 # Lesson 3 · StegoGuard Image Forensics with GitHub Actions
 
 Detect appended data in a PNG file, interpret the scanner’s findings, and test a new keyword rule. Complete the lab in your own GitHub fork using the web browser.
