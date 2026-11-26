@@ -27,7 +27,7 @@ JPEG_END = b"\xff\xd9"
 GIF_SIGNATURES = [b"GIF87a", b"GIF89a"]
 GIF_END = b"\x3b"
 
-# Built-in keywords. More can be added (one per line) in keywords.txt without
+# Built-in keywords. More can be added (one per line) in keywordlist.txt without
 # touching this file.
 SUSPICIOUS_WORDS = [
     b"hidden_message",
@@ -37,7 +37,7 @@ SUSPICIOUS_WORDS = [
     b"api_key",
     b"confidential",
 ]
-KEYWORD_FILE = Path("keywords.txt")
+KEYWORD_FILE = Path("keywordlist.txt")
 
 # Chunks that normal PNG files contain. Anything else is reported as unknown.
 KNOWN_CHUNKS = {
